@@ -75,6 +75,7 @@ class DevKitHal : public Esp32Hal {
         comm_interface::Modbus,
         comm_interface::RS485,
         comm_interface::CanNative,
+        comm_interface::CanFdAddonMcp2518,
     };
   }
 };
