@@ -7,6 +7,7 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/safety/safety.h"        //For emulator pause status and battery pause
+#include "../devboard/serial/serial_api.h"
 #include "../devboard/utils/events.h"
 #include "../devboard/utils/logging.h"
 #include "../lib/uds_isotp/uds.h"  // UDS service IDs and negative-response codes
@@ -322,6 +323,45 @@ void MebBattery::
   datalayer_extended.meb.balancing_active = balancing_active;
   datalayer_extended.meb.balancing_request = balancing_request;
   datalayer_extended.meb.charging_active = charging_active;
+
+  // Log rt_* field changes so they are visible on serial/web/syslog without needing the web UI.
+  static uint8_t prev_rt_overcurrent = 0;
+  static uint8_t prev_rt_CAN_fault = 0;
+  static uint8_t prev_rt_overcharge = 0;
+  static uint8_t prev_rt_SOC_high = 0;
+  static uint8_t prev_rt_SOC_low = 0;
+  static uint8_t prev_rt_SOC_jumping = 0;
+  static uint8_t prev_rt_temp_difference = 0;
+  static uint8_t prev_rt_cell_overtemp = 0;
+  static uint8_t prev_rt_cell_undertemp = 0;
+  static uint8_t prev_rt_battery_overvolt = 0;
+  static uint8_t prev_rt_battery_undervol = 0;
+  static uint8_t prev_rt_cell_overvolt = 0;
+  static uint8_t prev_rt_cell_undervol = 0;
+  static uint8_t prev_rt_cell_imbalance = 0;
+  static uint8_t prev_rt_battery_unathorized = 0;
+
+#define LOG_RT_CHANGE(field)                                                                  \
+  if (datalayer_extended.meb.field != prev_##field) {                                         \
+    logging.printf("MEB: " #field " %d -> %d\n", prev_##field, datalayer_extended.meb.field); \
+    prev_##field = datalayer_extended.meb.field;                                              \
+  }
+  LOG_RT_CHANGE(rt_overcurrent)
+  LOG_RT_CHANGE(rt_CAN_fault)
+  LOG_RT_CHANGE(rt_overcharge)
+  LOG_RT_CHANGE(rt_SOC_high)
+  LOG_RT_CHANGE(rt_SOC_low)
+  LOG_RT_CHANGE(rt_SOC_jumping)
+  LOG_RT_CHANGE(rt_temp_difference)
+  LOG_RT_CHANGE(rt_cell_overtemp)
+  LOG_RT_CHANGE(rt_cell_undertemp)
+  LOG_RT_CHANGE(rt_battery_overvolt)
+  LOG_RT_CHANGE(rt_battery_undervol)
+  LOG_RT_CHANGE(rt_cell_overvolt)
+  LOG_RT_CHANGE(rt_cell_undervol)
+  LOG_RT_CHANGE(rt_cell_imbalance)
+  LOG_RT_CHANGE(rt_battery_unathorized)
+#undef LOG_RT_CHANGE
 }
 
 void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -1539,4 +1579,42 @@ void MebBattery::setup(void) {  // Performs one time setup at startup
   // The BMS may still be asleep at power-on, so our first frames won't be ACKed. Ignore
   // this interface's transient CAN errors for a while so they don't clutter the event log.
   ignore_can_errors_for(can_interface, BMS_CAN_ERR_IGNORE_MS);
+
+  // clang-format off
+  static const SerialApiKey meb_keys[] = {
+    { "bms_mode",                []() -> int32_t { return datalayer_extended.meb.BMS_mode; } },
+    { "hvil",                    []() -> int32_t { return datalayer_extended.meb.HVIL; } },
+    { "isolation_kOhm",          []() -> int32_t { return (int32_t)datalayer_extended.meb.isolation_resistance; } },
+    { "voltage_intermediate_dV", []() -> int32_t { return datalayer_extended.meb.BMS_voltage_intermediate_dV; } },
+    { "battery_temp_dC",         []() -> int32_t { return datalayer_extended.meb.battery_temperature_dC; } },
+    { "balancing",               []() -> int32_t { return datalayer_extended.meb.balancing_active; } },
+    { "charging_active",         []() -> int32_t { return datalayer_extended.meb.charging_active ? 1 : 0; } },
+    { "sdsw",                    []() -> int32_t { return datalayer_extended.meb.SDSW ? 1 : 0; } },
+    { "pilotline",               []() -> int32_t { return datalayer_extended.meb.pilotline ? 1 : 0; } },
+    { "transport_mode",          []() -> int32_t { return datalayer_extended.meb.transportmode ? 1 : 0; } },
+    { "component_protection",    []() -> int32_t { return datalayer_extended.meb.componentprotection ? 1 : 0; } },
+    { "shutdown_active",         []() -> int32_t { return datalayer_extended.meb.shutdown_active ? 1 : 0; } },
+    { "battery_heating",         []() -> int32_t { return datalayer_extended.meb.battery_heating ? 1 : 0; } },
+    { "bms_error_shutdown",      []() -> int32_t { return datalayer_extended.meb.BMS_error_shutdown ? 1 : 0; } },
+    { "bms_error_shutdown_req",  []() -> int32_t { return datalayer_extended.meb.BMS_error_shutdown_request ? 1 : 0; } },
+    { "bms_fault_performance",   []() -> int32_t { return datalayer_extended.meb.BMS_fault_performance ? 1 : 0; } },
+    { "welded_contactors",       []() -> int32_t { return datalayer_extended.meb.BMS_welded_contactors_status; } },
+    { "rt_overcurrent",          []() -> int32_t { return datalayer_extended.meb.rt_overcurrent; } },
+    { "rt_can_fault",            []() -> int32_t { return datalayer_extended.meb.rt_CAN_fault; } },
+    { "rt_overcharge",           []() -> int32_t { return datalayer_extended.meb.rt_overcharge; } },
+    { "rt_soc_high",             []() -> int32_t { return datalayer_extended.meb.rt_SOC_high; } },
+    { "rt_soc_low",              []() -> int32_t { return datalayer_extended.meb.rt_SOC_low; } },
+    { "rt_soc_jumping",          []() -> int32_t { return datalayer_extended.meb.rt_SOC_jumping; } },
+    { "rt_temp_difference",      []() -> int32_t { return datalayer_extended.meb.rt_temp_difference; } },
+    { "rt_cell_overtemp",        []() -> int32_t { return datalayer_extended.meb.rt_cell_overtemp; } },
+    { "rt_cell_undertemp",       []() -> int32_t { return datalayer_extended.meb.rt_cell_undertemp; } },
+    { "rt_battery_overvolt",     []() -> int32_t { return datalayer_extended.meb.rt_battery_overvolt; } },
+    { "rt_battery_undervolt",    []() -> int32_t { return datalayer_extended.meb.rt_battery_undervol; } },
+    { "rt_cell_overvolt",        []() -> int32_t { return datalayer_extended.meb.rt_cell_overvolt; } },
+    { "rt_cell_undervolt",       []() -> int32_t { return datalayer_extended.meb.rt_cell_undervol; } },
+    { "rt_cell_imbalance",       []() -> int32_t { return datalayer_extended.meb.rt_cell_imbalance; } },
+    { "rt_unauthorized",         []() -> int32_t { return datalayer_extended.meb.rt_battery_unathorized; } },
+  };
+  // clang-format on
+  serial_api_register(meb_keys, sizeof(meb_keys) / sizeof(meb_keys[0]));
 }

@@ -21,6 +21,7 @@
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
 #include "src/devboard/sdcard/sdcard.h"
+#include "src/devboard/serial/serial_api.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
@@ -591,8 +592,9 @@ void core_loop(void*) {
     START_TIME_MEASUREMENT(comm);
 
     // Input, Runs as fast as possible
-    receive_can();    // Receive CAN messages
-    receive_rs485();  // Process serial2 RS485 interface
+    receive_can();      // Receive CAN messages
+    receive_rs485();    // Process serial2 RS485 interface
+    serial_api_tick();  // Handle serial API requests
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 

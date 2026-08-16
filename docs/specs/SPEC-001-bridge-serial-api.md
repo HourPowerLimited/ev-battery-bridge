@@ -1,7 +1,7 @@
 # SPEC-001 — Bridge Serial API
 
 ## Status
-Pending
+Done
 
 ## Background
 
