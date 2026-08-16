@@ -25,6 +25,7 @@ This fork must remain as close to upstream as possible for easy rebasing.
 - `comm_can.cpp` is untouched — `comm_can_mcp2518fd.cpp` replaces it via `src_filter`
 - `hal.cpp` has one added `#elif` block for `HW_ESP32_MCP2518FD` — minimal touch
 - `Software.cpp` has one added define in the Serial init guard — minimal touch
+- When rebasing from upstream: our new files have zero conflicts, only the minimal touches need review
 
 ---
 
