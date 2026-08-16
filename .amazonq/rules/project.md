@@ -44,14 +44,14 @@ set PYTHONIOENCODING=utf-8 && pio run -e esp32_mcp2518fd --upload-port COM3 -t u
 - If port busy: `tasklist`, kill `esptool.exe` and stale `pio.exe` with `taskkill /PID <pid> /F`
 - After flash: connect to WiFi `Battery-Emulator` / `123456789`, Settings → Battery = MEB, Inverter = None
 - Serial capture: `python tools/serial_capture.py --port COM3 --secs 15`
+- **Note:** opening COM3 asserts DTR and resets the ESP32 — you will see the boot log, not runtime output. For runtime logs use the web UI debug log page (enable USB logging) or configure syslog. A future fix to `serial_capture.py` should pass `dsrdtr=False, rtscts=False` and set `dtr=False` after open.
 
 ---
 
 ## Build
 - env: `esp32_mcp2518fd`
 - Cache: `.pio/build_cache` — first build ~20 min, subsequent ~1-2 min
-- Driver: `foodyfood/esp32-mcp2518fd-driver` v1.1.3 via local symlink `symlink://../../esp32-mcp2518fd-driver`
-- When registry propagates v1.1.3, switch to `foodyfood/esp32-mcp2518fd-driver@1.1.3`
+- Driver: `foodyfood/esp32-mcp2518fd-driver@1.1.3` from the PlatformIO registry
 - clang-format pre-commit hook is installed — runs automatically on commit
 
 ---
