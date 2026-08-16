@@ -26,6 +26,9 @@ void init_hal() {
 #elif defined(HW_DEVKIT)
 #include "hw_devkit.h"
   esp32hal = new DevKitHal();
+#elif defined(HW_ESP32_MCP2518FD)
+#include "hw_esp32_mcp2518fd.h"
+  esp32hal = new Esp32Mcp2518fdHal();
 #else
 #error "No HW defined."
 #endif
