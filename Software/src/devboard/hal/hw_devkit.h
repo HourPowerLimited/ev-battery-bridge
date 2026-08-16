@@ -39,6 +39,7 @@ class DevKitHal : public Esp32Hal {
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_35; }
   virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_25; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_34; }
+  virtual uint32_t MCP2517_FREQ() { return 40000000; }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_5; }
@@ -56,9 +57,8 @@ class DevKitHal : public Esp32Hal {
 
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_2; }
 
-  // LED
-  virtual gpio_num_t LED_PIN() { return GPIO_NUM_4; }
-  virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
+  // LED - not present on a bare DevKit, set NC to skip NeoPixel init
+  virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
 
   // Equipment stop pin
   virtual gpio_num_t EQUIPMENT_STOP_PIN() { return GPIO_NUM_12; }

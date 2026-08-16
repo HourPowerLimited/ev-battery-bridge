@@ -28,6 +28,7 @@ logs
 managed_components/
 sdkconfig.defaults
 sdkconfig.lilygo_330
+sdkconfig.esp32devkit_330
 
 # Ignore upload command (removes the need to re-compile after Verify when running Download, in e.g. VS Code)
 upload.bat
