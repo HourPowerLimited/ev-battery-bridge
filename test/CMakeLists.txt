@@ -69,11 +69,20 @@ add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
 add_executable(tests 
     tests.cpp
     voltage_sync_tests.cpp
+    offgrid_downgrade_tests.cpp
     bms_reset_tests.cpp
     inverter_alive_tests.cpp
+    millis_wrap_tests.cpp
+    estop_graceful_open_tests.cpp
+    contactor_sequence_tests.cpp
+    battery/FordMachETest.cpp
     battery_alive_tests.cpp
-    battery/NissanLeafTest.cpp 
+    battery/NissanLeafTest.cpp
+    battery/BydAtto3Test.cpp
+    battery/foxess_tests.cpp
     battery/still_alive_tests.cpp
+    battery/VolvoSPATest.cpp
+    battery/UdsCanBatteryTest.cpp
     can_log_based/canlog_safety_tests.cpp
     utils/utils.cpp
     ../Software/src/devboard/safety/parallel_safety.cpp
@@ -83,6 +92,7 @@ add_executable(tests
     ../Software/src/devboard/hal/hal.cpp
     ../Software/src/devboard/utils/types.cpp
     ../Software/src/devboard/utils/events.cpp
+    ../Software/src/devboard/utils/time_format.cpp
     ../Software/src/devboard/utils/common_functions.cpp
     ../Software/src/devboard/utils/led_handler.cpp
     ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
@@ -131,7 +141,7 @@ add_executable(tests
     ../Software/src/battery/KIA-HYUNDAI-HYBRID-BATTERY.cpp
     ../Software/src/battery/MEB-BATTERY.cpp
     ../Software/src/battery/MG-5-BATTERY.cpp
-    ../Software/src/battery/MG-HS-PHEV-BATTERY.cpp
+    ../Software/src/battery/MG-GEN1-BATTERY.cpp
     ../Software/src/battery/NISSAN-LEAF-BATTERY.cpp
     ../Software/src/battery/ORION-BMS.cpp
     ../Software/src/battery/PYLON-BATTERY.cpp
@@ -155,6 +165,7 @@ add_executable(tests
     ../Software/src/battery/THINK-BATTERY.cpp
     ../Software/src/battery/THUNDERSTRUCK-BMS.cpp
     ../Software/src/battery/GEELY-SEA-BATTERY.cpp
+    ../Software/src/battery/UdsCanBattery.cpp
     ../Software/src/battery/VOLVO-SPA-BATTERY.cpp
     ../Software/src/battery/VOLVO-SPA-HYBRID-BATTERY.cpp
     ../Software/src/inverter/AFORE-CAN.cpp

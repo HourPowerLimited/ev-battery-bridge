@@ -1,5 +1,6 @@
 #include "events.h"
 #include <Arduino.h>
+#include <string.h>  // memchr, for the notice_events lookup
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/hal/hal.h"
 #include "../../devboard/utils/logging.h"
@@ -20,6 +21,39 @@ static uint64_t can_errors_ignore_until_ms[NO_CAN_INTERFACE] = {0};
 
 /* Local function prototypes */
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
+
+/* Offgrid downgrade.
+ *
+ * Some events describe the loss of something an offgrid system never had.
+ * The inverter going missing is a genuine fault when it is the grid-tied
+ * sink, and is normal when the system is meant to run standalone - and today
+ * it raises system_status to FAULT, which gates precharge and so blocks a
+ * black start outright.
+ *
+ * Downgraded here rather than by editing the table in init_events(), so the
+ * declared severity stays readable in one place and the exception is a short,
+ * auditable list. Applied at every point the level is READ, so what gets
+ * aggregated, logged and shown on the events page is the effective level -
+ * not a FAULT that merely displays as a warning.
+ *
+ * Extending this is a matter of adding an event id: the mechanism assumes
+ * nothing about which events belong here. */
+static const EVENTS_ENUM_TYPE OFFGRID_DOWNGRADED_EVENTS[] = {
+    EVENT_CAN_INVERTER_MISSING,
+};
+
+static EVENTS_LEVEL_TYPE effective_level(EVENTS_ENUM_TYPE event) {
+  EVENTS_LEVEL_TYPE level = events.entries[event].level;
+  if (!user_selected_inverter_offgrid || level <= EVENT_LEVEL_WARNING) {
+    return level;
+  }
+  for (EVENTS_ENUM_TYPE downgraded : OFFGRID_DOWNGRADED_EVENTS) {
+    if (event == downgraded) {
+      return EVENT_LEVEL_WARNING;
+    }
+  }
+  return level;
+}
 static bool can_error_ignored(EVENTS_ENUM_TYPE event);
 static void update_event_level(void);
 static void update_bms_status(void);
@@ -40,6 +74,63 @@ static uint8_t event_level_to_syslog(EVENTS_LEVEL_TYPE lvl) {
     default:
       return 6;
   }
+}
+
+/* Operational milestones that a syslog server should show at its default verbosity:
+   one-shot-per-boot lifecycle transitions and deliberate operator actions.
+
+   This is deliberately NOT expressed by raising the event's EVENTS_LEVEL_TYPE.
+   EVENT_LEVEL_UPDATE is the only level that already maps to notice, but it is a state
+   level, not a logging level: update_bms_status() turns it into system_status = UPDATING,
+   which drives the LED pattern, the web UI status and inverter behaviour. Marking, say,
+   EVENT_MQTT_CONNECT as UPDATE would park the emulator in UPDATING forever.
+
+   Stored as a flat uint8_t table so it costs one byte per entry and a single memchr,
+   rather than the ~8 bytes of compare-and-branch per case a switch would emit. */
+static_assert(EVENT_NOF_EVENTS <= 256, "notice_events[] indexes events as uint8_t");
+static const uint8_t notice_events[] = {
+    // Peer detection - latched in check_can_component_alive(), so one line per boot
+    EVENT_CAN_BATTERY_DETECTED,
+    EVENT_CAN_BATTERY2_DETECTED,
+    EVENT_CAN_BATTERY3_DETECTED,
+    EVENT_CAN_INVERTER_DETECTED,
+    EVENT_MODBUS_INVERTER_DETECTED,
+    EVENT_CAN_CHARGER_DETECTED,
+    // Connectivity - the "down" halves are listed so a syslog view never shows an
+    // unterminated session. Wi-Fi/battery/inverter loss is already >= warning.
+    EVENT_MQTT_CONNECT,
+    EVENT_MQTT_DISCONNECT,
+    EVENT_WIFI_DISCONNECT,
+    // Deliberate state changes. PAUSE_BEGIN is already warning; without PAUSE_END the
+    // pause window never appears to close.
+    EVENT_PAUSE_END,
+    EVENT_WIFI_AP_PROVISION_TIMEOUT,
+    EVENT_WIFI_AP_PASSWORD_DEFAULT,
+    EVENT_PERIODIC_BMS_RESET,
+    EVENT_BMS_RESET_REQ_SUCCESS,
+    // Reset cause - fires exactly once per boot and answers "why did it come back".
+    // The WDT/panic/lockup causes are already warning.
+    EVENT_RESET_UNKNOWN,
+    EVENT_RESET_POWERON,
+    EVENT_RESET_EXT,
+    EVENT_RESET_SW,
+    EVENT_RESET_DEEPSLEEP,
+    EVENT_RESET_SDIO,
+    EVENT_RESET_USB,
+    EVENT_RESET_JTAG,
+    EVENT_RESET_EFUSE,
+    EVENT_RESET_PWR_GLITCH,
+};
+
+// Syslog severity for an event: its level, raised to notice for the milestones above.
+// The sev > 5 test means the table can only ever raise severity, so re-levelling an
+// event to warning or error later cannot be silently undone here.
+static uint8_t event_syslog_severity(EVENTS_ENUM_TYPE event) {
+  uint8_t sev = event_level_to_syslog(effective_level(event));
+  if (sev > 5 && memchr(notice_events, (uint8_t)event, sizeof(notice_events)) != nullptr) {
+    sev = 5;  // notice
+  }
+  return sev;
 }
 
 /* Initialization function */
@@ -175,9 +266,11 @@ void init_events(void) {
   events.entries[EVENT_BMS_RESET_REQ_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BMS_RESET_REQ_FAIL].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_REQUESTS_HEAT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_WARMED_UP].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_PERIODIC_BMS_RESET_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -453,13 +546,13 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_PID_FAILED:
       return "Failed to write PID request to battery";
     case EVENT_WIFI_CONNECT:
-      return "Wifi connected.";
+      return "Wi-Fi connected.";
     case EVENT_WIFI_DISCONNECT:
-      return "Wifi disconnected.";
+      return "Wi-Fi disconnected.";
     case EVENT_WIFI_AP_PASSWORD_DEFAULT:
       return "The AP will be disabled after 5 idle minutes. Change default password to keep AP constantly on!";
     case EVENT_WIFI_AP_PROVISION_TIMEOUT:
-      return "Wifi AP disabled due to cybersecurity concern. Change default password to keep AP "
+      return "Wi-Fi AP disabled due to cybersecurity concern. Change default password to keep AP "
              "constantly on! Reboot/Hold BOOT button 5-15 seconds to re-enable AP temporarily.";
     case EVENT_MQTT_CONNECT:
       return "MQTT connected.";
@@ -495,7 +588,7 @@ const char* get_event_enum_string(EVENTS_ENUM_TYPE event) {
 
 const char* get_event_level_string(EVENTS_ENUM_TYPE event) {
   // Return the event level but skip "EVENT_LEVEL_" that should always be first
-  return EVENTS_LEVEL_TYPE_STRING[events.entries[event].level] + 12;
+  return EVENTS_LEVEL_TYPE_STRING[effective_level(event)] + 12;
 }
 
 const char* get_event_level_string(EVENTS_LEVEL_TYPE event_level) {
@@ -579,8 +672,8 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].MQTTpublished = false;
 
-    LOG_SET_NEXT_SEVERITY(event_level_to_syslog(events.entries[event].level));
-    DEBUG_PRINTF("Event: %s\n", get_event_message_string(event).c_str());
+    LOG_SET_NEXT_SEVERITY(event_syslog_severity(event));
+    DEBUG_PRINTF("%s (event)\n", get_event_message_string(event).c_str());
   }
 
   // We should set the event, update event info
@@ -591,7 +684,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
 
   // Update event level, only upwards. Downward changes are done in Software.ino:loop()
-  events.level = (EVENTS_LEVEL_TYPE)max(events.level, events.entries[event].level);
+  events.level = (EVENTS_LEVEL_TYPE)max(events.level, effective_level(event));
 
   update_bms_status();
 }
@@ -633,7 +726,7 @@ static void update_event_level(void) {
   EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
   for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
     if ((events.entries[i].state == EVENT_STATE_ACTIVE) || (events.entries[i].state == EVENT_STATE_ACTIVE_LATCHED)) {
-      temporary_level = (EVENTS_LEVEL_TYPE)max(events.entries[i].level, temporary_level);
+      temporary_level = (EVENTS_LEVEL_TYPE)max(effective_level((EVENTS_ENUM_TYPE)i), temporary_level);
     }
   }
   events.level = temporary_level;

@@ -89,6 +89,9 @@ void TestFakeBattery::
     datalayer_battery->status.balancing_status = BALANCING_STATUS_READY;
   }
 
+  datalayer_battery->status.total_charged_battery_Wh = 123555;
+  datalayer_battery->status.total_discharged_battery_Wh = 123444;
+
   //Fake that we get CAN messages
   datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
@@ -127,4 +130,6 @@ void TestFakeBattery::setup(void) {  // Performs one time setup at startup
   if (allows_contactor_closing) {
     *allows_contactor_closing = true;
   }
+
+  datalayer.system.status.dc_bus_live = false;  // Fake battery no voltage on the DC bus.
 }

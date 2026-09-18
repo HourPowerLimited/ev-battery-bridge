@@ -276,9 +276,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
            capability_css("if-tricapable", battery_supports_triple);
   }
   if (var == "BATTCHEM") {
-    return options_for_enum(
-        (battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::Autodetect),
-        name_for_chemistry);
+    return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
+                            name_for_chemistry);
   }
   if (var == "INVTYPE") {
     return options_for_enum_with_none(
@@ -310,8 +309,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
 
   if (var == "CTATTEN") {
     return options_for_enum_with_none(
-        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_0db), name_for_adc_attenuation,
-        adc_attenuation_enum::ADC_0db);
+        (adc_attenuation_enum)settings.getUInt("CTATTEN", (int)adc_attenuation_enum::ADC_11db),
+        name_for_adc_attenuation, adc_attenuation_enum::ADC_0db);
   }
 
   if (var == "EQSTOP") {
@@ -360,7 +359,7 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
   }
 
   if (var == "SUNGROW_MODEL") {
-    return options_from_map(settings.getUInt("INVSUNTYPE", 1), sungrow_models);  // Default: SBR096
+    return options_from_map(settings.getUInt("INVSUNTYPE", 0), sungrow_models);  // Default: SBR064, as boot assumes
   }
 
   if (var == "PYLON_MODEL") {
@@ -517,6 +516,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("SOCESTIMATED") ? "checked" : "";
   }
 
+  if (var == "CHGESTIMATED") {
+    return settings.getBool("CHGESTIMATED") ? "checked" : "";
+  }
+
   if (var == "CNTCTRL") {
     return settings.getBool("CNTCTRL") ? "checked" : "";
   }
@@ -526,6 +529,9 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHGTAPERSOC") {
+    if (settings.getBool("CHGESTIMATED")) {
+      return "checked";
+    }
     if (battery && battery->mandatory_charge_taper()) {
       return "checked";
     }
@@ -634,11 +640,11 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "CHGPOWER") {
-    return String(settings.getUInt("CHGPOWER", 0));
+    return String(settings.getUInt("CHGPOWER", 1000));
   }
 
   if (var == "DCHGPOWER") {
-    return String(settings.getUInt("DCHGPOWER", 0));
+    return String(settings.getUInt("DCHGPOWER", 1000));
   }
 
   if (var == "LOCALIP") {
@@ -698,6 +704,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("WEBENABLED") ? "checked" : "";
   }
 
+#ifdef SDCARD
   if (var == "CANLOGSD") {
     return settings.getBool("CANLOGSD") ? "checked" : "";
   }
@@ -705,6 +712,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
   }
+#endif  // SDCARD
   if (var == "SYSLOGEN") {
     return settings.getBool("SYSLOGEN") ? "checked" : "";
   }
@@ -719,6 +727,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
   if (var == "ESPNOWENABLED") {
     return settings.getBool("ESPNOWENABLED") ? "checked" : "";
+  }
+
+  if (var == "ESPNOWMACS") {
+    return settings.getString("ESPNOWMACS");
   }
 
   if (var == "MQTTENABLED") {
@@ -753,8 +765,21 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("MQTTCELLV") ? "checked" : "";
   }
 
+  if (var == "MQTTHEAP") {
+    return settings.getBool("MQTTHEAP") ? "checked" : "";
+  }
+
   if (var == "HADISC") {
     return settings.getBool("HADISC") ? "checked" : "";
+  }
+
+  if (var == "HADISCFWU") {
+    return settings.getBool("HADISCFWU") ? "checked" : "";
+  }
+
+  // Not a stored setting: the master switch is on whenever one of the options below it is.
+  if (var == "HADISCEN") {
+    return (settings.getBool("HADISC") || settings.getBool("HADISCFWU")) ? "checked" : "";
   }
 
   if (var == "HADISCTOPIC") {
@@ -975,6 +1000,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return String(settings.getUInt("INVBTYPE", 0));
   }
 
+  if (var == "INVOFFGRID") {
+    return settings.getBool("INVOFFGRID") ? "checked" : "";
+  }
+
   if (var == "DEYEBYD") {
     return settings.getBool("DEYEBYD") ? "checked" : "";
   }
@@ -1147,6 +1176,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define GPIOOPT6_SETTING ""
 #endif
 
+#ifdef SDCARD
+#define SD_SETTING_HTML \
+  R"rawliteral(
+        <label>General logging to SD card: </label>
+        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED%
+            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
+
+        <label>CAN message logging to SD card: </label>
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD%
+            title="Store incoming/outgoing CAN messages on SD card. Only works on hardware with SD-card slot." />
+  )rawliteral"
+#else
+#define SD_SETTING_HTML ""
+#endif  // SDCARD
+
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
         <label>General logging to syslog server: </label>
@@ -1232,7 +1276,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         xhr=new 
         XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateMaxDischargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 1000.0');}}}
 
-        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power should be off during periodic daily resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-59):');if(value!==null){if(value>=1&&value<=59){var 
+        function editBMSresetDuration(){var value=prompt('Amount of seconds BMS power should be off during periodic daily resets. Requires "Periodic BMS reset" to be enabled. Enter value in seconds (1-59):');if(value!==null){if(value>=1&&value<=600){var 
         xhr=new XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateBMSresetDuration?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 and 59');}}}
 
         function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is fully charged before enabling, and also that you have enough sun or grid power to feed power into the battery while balancing is active. Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new 
@@ -1276,6 +1320,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
           XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/updateChargeEndA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and 100');}}}
 
           function goToMainPage() { window.location.href = '/'; }
+
+          function haDisc(c) {
+            var f = document.querySelector("[name=HADISCFWU]"), n = document.querySelector("[name=HADISC]");
+            if (!c.checked) { f.checked = n.checked = false; } else if (!f.checked && !n.checked) { f.checked = true; }
+          }
 
           document.querySelectorAll('select,input').forEach(function(sel) {
             function ch() {
@@ -1383,12 +1432,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-battery="14"] .if-estimated, 
     form[data-battery="16"] .if-estimated, 
     form[data-battery="24"] .if-estimated,
+    form[data-battery="26"] .if-estimated,
     form[data-battery="32"] .if-estimated, 
     form[data-battery="33"] .if-estimated,
     form[data-battery="40"] .if-estimated,
     form[data-battery="41"] .if-estimated,
+    form[data-battery="44"] .if-estimated,
     form[data-battery="50"] .if-estimated,
     form[data-battery="51"] .if-estimated {
+      display: contents;
+    }
+
+    form .if-chgestimated { display: none; } /* Integrations where you sometimes want to fallback to user set charge/discharge power options, since they are for unknown reason not available on some packs */
+    form[data-battery="8"] .if-chgestimated,
+    form[data-battery="26"] .if-chgestimated,
+    form[data-battery="44"] .if-chgestimated {
       display: contents;
     }
 
@@ -1512,8 +1570,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
       display: contents;
     }
 
+    form .if-hadiscen { display: none; }
+    form[data-hadiscen="true"] .if-hadiscen {
+      display: contents;
+    }
+
     form .if-syslogen { display: none; }
     form[data-syslogen="true"] .if-syslogen {
+      display: contents;
+    }
+
+    form .if-espnowenabled { display: none; }
+    form[data-espnowenabled="true"] .if-espnowenabled {
       display: contents;
     }
 
@@ -1731,6 +1799,12 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         title="Switch to estimated State of Charge when accurate SOC data is not available from the battery" />
         </div>
 
+        <div class="if-chgestimated">
+        <label>Use estimated charge limits: </label>
+        <input type='checkbox' name='CHGESTIMATED' value='on' %CHGESTIMATED% 
+        title="Switch to estimated charge/discharge limits when accurate data is not available from the battery" />
+        </div>
+
         <div class="if-battery">
         <label for='BATTCOMM'>Battery interface: </label><select name='BATTCOMM' id='BATTCOMM'>
         %BATTCOMM%
@@ -1855,6 +1929,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <label>Pylon, manufacturer name: </label>
         <select name='PYLONBRAND'>%PYLON_MODEL%</select>
         </div>
+
+        <label>Inverter run entirely offgrid: </label>
+        <input type='checkbox' name='INVOFFGRID' value='on' %INVOFFGRID%
+        title="When enabled, faults that only mean the grid-tied inverter is absent are recorded as warnings instead, so they do not stop the battery from starting" />
 
         <div class="if-byd">
         <label>Deye avoid over/undercharge fix: </label>
@@ -2076,7 +2154,15 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
         <label>Enable ESPNow: </label>
-        <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />
+        <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED%
+        title="Send battery telemetry to nearby devices over ESP-NOW" />
+
+        <div class='if-espnowenabled'>
+        <label>ESPNow receiver MACs: </label>
+        <input type='text' name='ESPNOWMACS' value="%ESPNOWMACS%" maxlength="180"
+        pattern="\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5}(\s*[,;]\s*[0-9A-Fa-f]{2}([:\-]?[0-9A-Fa-f]{2}){5})*\s*"
+        title="Comma separated list of receiver MAC addresses, e.g. AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66 (max 8). Leave empty to broadcast to every device. Takes effect after a restart." />
+        </div>
 
         <label>Enable MQTT: </label>
         <input type='checkbox' name='MQTTENABLED' value='on' %MQTTENABLED% />
@@ -2105,14 +2191,27 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         min="1" max="300" step="1"
         title="How often to publish MQTT messages in seconds (1-300, step 1). Default: 5" />
         <label>Send all cellvoltages via MQTT: </label><input type='checkbox' name='MQTTCELLV' value='on' %MQTTCELLV% />
+        <label>Publish heap metric diagnostics: </label>
+        <input type='checkbox' name='MQTTHEAP' value='on' %MQTTHEAP%
+        title="Publish free heap, largest free block, minimum free heap and heap fragmentation to the /info topic and to Home Assistant autodiscovery. Takes effect after a restart." />
         <label>Allow remote BMS reset via MQTT: </label>
         <input type='checkbox' name='REMBMSRESET' value='on' %REMBMSRESET% />
-        <label>Enable Home Assistant auto discovery: </label>
-        <input type='checkbox' name='HADISC' value='on' %HADISC% />
-        <label>Home Assistant auto discovery topic: </label>
+        <label>Home Assistant autodiscovery: </label>
+        <input type='checkbox' name='HADISCEN' value='on' %HADISCEN% onchange='haDisc(this)'
+        title="Publish Home Assistant MQTT discovery configs. The broker retains them, so Home Assistant keeps the entities without them being republished at every boot." />
+
+        <div class='if-hadiscen'>
+        <label>Autodiscovery topic: </label>
         <input type='text' name='HADISCTOPIC' value="%HADISCTOPIC%"
         pattern="[A-Za-z0-9_\-]+"
         title="MQTT auto discovery base topic (letters, numbers, '_', '-')" />
+        <label>Publish at firmware updates: </label>
+        <input type='checkbox' name='HADISCFWU' value='on' %HADISCFWU%
+        title="Publish the discovery configs once after every firmware update. They carry the software version and can gain or change entities between releases." />
+        <label>Publish at next boot: </label>
+        <input type='checkbox' name='HADISC' value='on' %HADISC%
+        title="Publish the discovery configs once after the next restart. Clears itself once they have been published." />
+        </div>
 
         </div>
 
@@ -2154,19 +2253,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         }
         </script>
 
-        <label>General logging to SD card: </label>
-        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% 
-            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
-
         <label>CAN message logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%
             title="WARNING: Causes performance issues! Log incoming/outgoing CAN messages via USB cable. Avoid if possible!" />
 
-        <label>CAN message logging to SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
-            title="Store incoming/outgoing CAN messages on on SD card. Only works on hardware with SD-card slot." />
-
-        )rawliteral" SYSLOG_SETTING_HTML R"rawliteral(
+        )rawliteral" SD_SETTING_HTML SYSLOG_SETTING_HTML R"rawliteral(
 
         </div>
         </div>

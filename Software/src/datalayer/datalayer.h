@@ -16,6 +16,11 @@ struct DATALAYER_BATTERY_DTC_TYPE {
   uint8_t dtc_status[MAX_DTC_COUNT];
   // Number of DTCs stored
   uint8_t dtc_count;
+  // Number of DTCs the battery reported in its last answer. Equals dtc_count in the normal case,
+  // and exceeds it when the answer held more codes than MAX_DTC_COUNT slots, so the display can say
+  // that the list is truncated rather than silently showing the first few. Placed here because the
+  // uint16 fits in the padding after dtc_count and costs no extra bytes.
+  uint16_t dtc_reported_count;
   // Last successful read (0 = never read)
   unsigned long dtc_last_read_millis;
   // Indicates that the last read failed
@@ -151,9 +156,9 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
 struct DATALAYER_BATTERY_SETTINGS_TYPE {
 
   /** Last time a remote set command was received to enable timeout of settings */
-  unsigned long remote_set_timestamp = 0;
+  uint32_t remote_set_timestamp = 0;
   /** Timeout time for remote limits */
-  unsigned long remote_set_timeout = 0;
+  uint32_t remote_set_timeout = 0;
   /* Forced balancing max time & start timestamp */
   uint32_t balancing_max_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
   uint32_t balancing_start_time_ms = 0;      //For keeping track when balancing started
@@ -179,8 +184,9 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   uint16_t max_user_set_charge_voltage_dV = 4500;
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
   uint16_t max_user_set_discharge_voltage_dV = 3000;
-  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset */
-  uint16_t user_set_bms_reset_duration_ms = 30000;
+  /** The user specified BMS reset period. Keeps track on how many milliseconds should we keep power off during daily BMS reset.
+   * 32-bit because the setting accepts up to 600 s, which does not fit in a uint16_t */
+  uint32_t user_set_bms_reset_duration_ms = 30000;
   /* Max cell voltage during forced balancing */
   uint16_t balancing_max_cell_voltage_mV = 3650;
   /* Max cell deviation allowed during forced balancing */
@@ -311,6 +317,8 @@ struct DATALAYER_SYSTEM_INFO_TYPE {
 
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
+  /** bool, indicates if a webserver CAN stream is active */
+  bool can_streaming_active = false;
   /** bool, determines if USB serial logging should occur */
   bool CAN_usb_logging_active = false;
   /** bool, determines if USB serial logging should occur */
