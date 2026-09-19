@@ -91,11 +91,13 @@ static void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interfa
   if (interface != CANFD_NATIVE) {
     print_can_frame(*rx_frame, interface, frameDirection(MSG_RX));
   }
+#ifdef SDCARD
   if (datalayer.system.info.CAN_SD_logging_active) {
     if (interface != CANFD_NATIVE) {
-      add_can_frame_to_buffer(*rx_frame, frameDirection(MSG_RX));
+      add_can_frame_to_buffer(*rx_frame, interface, frameDirection(MSG_RX));
     }
   }
+#endif
   auto receivers = can_receivers.equal_range(interface);
   for (auto it = receivers.first; it != receivers.second; ++it) {
     it->second.receiver->receive_can_frame(rx_frame);
@@ -211,9 +213,11 @@ void transmit_can_frame_to_interface(const CAN_frame* tx_frame, CAN_Interface in
     return;
   }
   print_can_frame(*tx_frame, interface, frameDirection(MSG_TX));
+#ifdef SDCARD
   if (datalayer.system.info.CAN_SD_logging_active) {
-    add_can_frame_to_buffer(*tx_frame, frameDirection(MSG_TX));
+    add_can_frame_to_buffer(*tx_frame, interface, frameDirection(MSG_TX));
   }
+#endif
 
   MCP2518Driver* drv = (interface == CANFD_ADDON_MCP2518_2) ? canfd_2 : canfd;
   if (drv == nullptr) {
