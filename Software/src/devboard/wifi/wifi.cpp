@@ -106,7 +106,7 @@ String default_hostname() {
   esp_read_mac(mac_bytes, ESP_MAC_WIFI_STA);  // reads eFuse directly, valid even before WiFi starts
   char mac_suffix[5];
   snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
-  return "battery-emulator-" + String(mac_suffix);
+  return "HourPower Battery Bridge " + String(mac_suffix);
 }
 
 // Initialise mDNS
