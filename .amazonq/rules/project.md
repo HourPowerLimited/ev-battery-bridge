@@ -50,8 +50,7 @@ set PYTHONIOENCODING=utf-8 && pio run -e esp32_mcp2518fd --upload-port COM3 -t u
 ## Build
 - env: `esp32_mcp2518fd`
 - Cache: `.pio/build_cache` — first build ~20 min, subsequent ~1-2 min
-- Driver: `foodyfood/esp32-mcp2518fd-driver` v1.1.3 via local symlink `symlink://../../esp32-mcp2518fd-driver`
-- When registry propagates v1.1.3, switch to `foodyfood/esp32-mcp2518fd-driver@1.1.3`
+- Driver: `foodyfood/esp32-mcp2518fd-driver@1.1.3` from PlatformIO registry
 - clang-format pre-commit hook is installed — runs automatically on commit
 
 ---
