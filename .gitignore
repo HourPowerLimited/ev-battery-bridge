@@ -13,6 +13,11 @@ test/cmake_install.cmake
 test/gtest/
 test/tests[1]_include.cmake
 
+# Python
+__pycache__/
+*.pyc
+**/.venv
+
 # Ignore .exe (unit tests)
 *.exe
 **/.DS_Store
@@ -41,3 +46,4 @@ Software/idf_component.yml
 
 # Ignore generated version header (produced by tools/identify_build.py)
 Software/src/devboard/utils/version_autogen.h
+
