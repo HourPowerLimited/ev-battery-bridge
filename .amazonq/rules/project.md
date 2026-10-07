@@ -39,19 +39,22 @@ This fork must remain as close to upstream as possible for easy rebasing.
 
 ## Flash Procedure
 ```
-set PYTHONIOENCODING=utf-8 && pio run -e esp32_mcp2518fd --upload-port COM3 -t upload
+set PYTHONIOENCODING=utf-8 && .venv\Scripts\platformio run -e esp32_mcp2518fd --upload-port COM3 -t upload
 ```
 - If port busy: `tasklist`, kill `esptool.exe` and stale `pio.exe` with `taskkill /PID <pid> /F`
 - After flash: connect to WiFi `Battery-Emulator` / `123456789`, Settings → Battery = MEB, Inverter = None
-- Serial capture: `python tools/serial_capture.py --port COM3 --secs 15`
+- Serial capture: `.venv\Scripts\python tools/serial_capture.py --port COM3 --secs 15`
 
 ---
 
 ## Build
-- env: `esp32_mcp2518fd`
-- Cache: `.pio/build_cache` — first build ~20 min, subsequent ~1-2 min
+- env: `esp32_mcp2518fd` — always use this, never `esp32devkit_330`
+- Use the project venv: `.venv\Scripts\platformio run -e esp32_mcp2518fd`
+- Or use `build_all_pio.bat` from the workspace root
+- Cache: `.pio/build_cache` — first build ~20 min (IDF compiles from source), subsequent ~1-2 min
 - Driver: `foodyfood/esp32-mcp2518fd-driver@1.1.3` from PlatformIO registry
 - clang-format pre-commit hook is installed — runs automatically on commit
+- See `docs/build-environment-reference.md` for full environment details and troubleshooting
 
 ---
 

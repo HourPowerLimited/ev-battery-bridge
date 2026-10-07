@@ -1,3 +1,15 @@
+## HourPower build notes ⚠️
+
+This is a fork. For HourPower-specific build instructions, environment setup, and flash procedure, see:
+- `docs/build-environment-reference.md` — full environment details, venv setup, troubleshooting
+- `.amazonq/rules/project.md` — AI assistant context and quick reference
+
+Key points:
+- Use the project venv (`py -3.13 -m venv .venv && .venv\Scripts\pip install -r requirements.txt`)
+- Always build env `esp32_mcp2518fd` — never `esp32devkit_330`
+- First build ~20 min (IDF compiles from source), subsequent ~1-2 min
+- Do not manually install packages into `.pio/core/penv`
+
 ### Contributing to the Battery-Emulator project
 
 What can I do? 🦸
