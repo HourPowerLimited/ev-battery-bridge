@@ -68,7 +68,7 @@ Kill any `esptool.exe` or stale `pio.exe` processes, then retry.
 - `Obsolete PIO Core v6.1.19` warnings during builds are harmless — a newer global PlatformIO is installed but the venv overrides it.
 - The `ev-battery-bridge/.pio/core/penv` is owned entirely by pioarduino. Never manually install packages into it.
 - If the penv gets corrupted (e.g. wrong PlatformIO version created it), delete `.pio/core/penv` and rebuild. The first build will recreate it cleanly in ~20 min.
-- Unit tests (`ev-battery-simulator/tests/unit`) require a host GCC compiler. On Windows this means MinGW. They are not expected to pass without it.
+- Unit tests (`ev-battery-simulator/tests/unit`) use the native platform and require GCC. Run them in WSL 2: `wsl -- bash -c "cd /mnt/c/Users/d1/repos/hourpower/ev-battery-simulator/tests/unit && ~/.venv/bin/platformio test"`
 
 Connect to WiFi AP `Battery-Emulator` / `123456789`, go to Settings and select:
 - Battery = MEB
