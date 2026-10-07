@@ -1,20 +1,10 @@
-# ev-battery-bridge Project Rules
+# ev-battery-bridge
 
-## What this project is
-Fork of dalathegreat/Battery-Emulator. Translates EV battery CAN-FD protocols to
-inverter protocols for second-life storage. Our fork adds:
-- `HW_ESP32_MCP2518FD` HAL — bare ESP32 DevKit V1 + MCP2518FD breakout
-- `comm_can_mcp2518fd.cpp` — additive CAN driver using foodyfood/esp32-mcp2518fd-driver
-- `esp32_mcp2518fd` PlatformIO env — our target env
+Fork of dalathegreat/Battery-Emulator. Translates EV battery CAN-FD protocols to inverter protocols for second-life storage.
 
-Upstream repo: https://github.com/dalathegreat/Battery-Emulator
-Our fork: https://github.com/HourPowerLimited/ev-battery-bridge (private)
+Upstream: https://github.com/dalathegreat/Battery-Emulator  
+Our fork: https://github.com/HourPowerLimited/ev-battery-bridge (private)  
 Active branch: `devkit-canfd-interface`
-
----
-
-## Code Review Tool
-NEVER use the codeReview tool. Ever. For any reason.
 
 ---
 
@@ -31,38 +21,30 @@ This fork must remain as close to upstream as possible for easy rebasing.
 
 ## Hardware
 - MCU: ESP32 DevKit V1 — CAN: MCP2518FD breakout — COM3
-- SPI VSPI: SCK=33, MISO=35, MOSI=32, CS=25, INT=34
 - CAN bus wired to ev-battery-simulator on COM4
-- Both boards are identical hardware
-
----
-
-## Flash Procedure
-```
-set PYTHONIOENCODING=utf-8 && .venv\Scripts\platformio run -e esp32_mcp2518fd --upload-port COM3 -t upload
-```
-- If port busy: `tasklist`, kill `esptool.exe` and stale `pio.exe` with `taskkill /PID <pid> /F`
-- After flash: connect to WiFi `Battery-Emulator` / `123456789`, Settings → Battery = MEB, Inverter = None
-- Serial capture: `.venv\Scripts\python tools/serial_capture.py --port COM3 --secs 15`
 
 ---
 
 ## Build
 - env: `esp32_mcp2518fd` — always use this, never `esp32devkit_330`
-- Use the project venv: `.venv\Scripts\platformio run -e esp32_mcp2518fd`
-- Or use `build_all_pio.bat` from the workspace root
+- `esp32devkit_330` crashes on boot (GPIO 85 bug from ACAN2517FD + no LED)
+- Driver: `foodyfood/esp32-mcp2518fd-driver@1.1.3`
 - Cache: `.pio/build_cache` — first build ~20 min (IDF compiles from source), subsequent ~1-2 min
-- Driver: `foodyfood/esp32-mcp2518fd-driver@1.1.3` from PlatformIO registry
-- clang-format pre-commit hook is installed — runs automatically on commit
-- See `docs/build-environment-reference.md` for full environment details and troubleshooting
+- clang-format pre-commit hook runs automatically on commit
+- See `docs/build-environment-reference.md` for full environment details
+
+---
+
+## After flash
+Join WiFi `Battery-Emulator` / `123456789` → Settings → Battery = MEB, Inverter = None  
+Serial capture: `.venv\Scripts\python tools/serial_capture.py --port COM3 --secs 15`
 
 ---
 
 ## Current state
 - MEB battery data flows end-to-end: simulator → CAN-FD bus → bridge → web UI
 - SOC, cell voltages, charge/discharge limits, BMS mode all working
-- Known gaps documented in `docs/specs/SPEC-001-meb-data-completeness.md`
-- Next work: implement SPEC-001 gaps (see spec for implementation order)
+- Known gaps: `docs/specs/SPEC-001-meb-data-completeness.md`
 
 ---
 
@@ -72,9 +54,3 @@ set PYTHONIOENCODING=utf-8 && .venv\Scripts\platformio run -e esp32_mcp2518fd --
 - `Software/src/battery/MEB-BATTERY.cpp` — upstream MEB driver (read carefully before touching)
 - `platformio.ini` — `esp32_mcp2518fd` env at the top, `build_cache_dir` set
 - `docs/specs/SPEC-001-meb-data-completeness.md` — gap analysis and acceptance criteria
-
----
-
-## Do not use
-- `esp32devkit_330` env — crashes on boot (GPIO 85 bug from ACAN2517FD + no LED)
-- `pio device monitor` — use `python tools/serial_capture.py` instead
